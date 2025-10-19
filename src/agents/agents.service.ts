@@ -1,0 +1,129 @@
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Agent, AgentApprovalStatus, NotificationChannel, NotificationType, User, UserType } from 'entities/global.entity';
+import { CreateAgentDto, UpdateAgentDto, ApproveAgentDto, AgentQueryDto } from '../../dto/agents.dto';
+import { NotificationsService } from 'src/notifications/notifications.service';
+
+@Injectable()
+export class AgentsService {
+  constructor(
+    @InjectRepository(Agent)
+    public agentsRepository: Repository<Agent>,
+    @InjectRepository(User)
+    private usersRepository: Repository<User>,
+    private notificationsService: NotificationsService,
+  ) {}
+
+  async create(createAgentDto: CreateAgentDto): Promise<Agent> {
+    const existingAgent = await this.agentsRepository.findOne({
+      where: { user: { id: createAgentDto.userId } },
+    });
+
+    if (existingAgent) {
+      throw new ConflictException('Agent already exists for this user');
+    }
+
+    const user = await this.usersRepository.findOne({ where: { id: createAgentDto.userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const agent = this.agentsRepository.create({
+      user,
+      city: { id: createAgentDto.cityId },
+      identityProofUrl: createAgentDto.identityProofUrl,
+      residencyDocumentUrl: createAgentDto.residencyDocumentUrl,
+    });
+
+    await this.notificationsService.notifyUserType(UserType.ADMIN, {
+      type: NotificationType.SYSTEM,
+      title: 'New Agent Application',
+      message: `Agent ${user.fullName} has submitted a new application and requires approval.`,
+      relatedId: agent.id,
+      channel: NotificationChannel.IN_APP,
+    });
+
+    return this.agentsRepository.save(agent);
+  }
+
+  async findAll(query: AgentQueryDto): Promise<{ data: Agent[]; total: number }> {
+    const { status, cityId, page = 1, limit = 10 } = query;
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+    if (status) where.status = status;
+    if (cityId) where.city = { id: cityId };
+
+    const [data, total] = await this.agentsRepository.findAndCount({
+      where,
+      relations: ['user', 'city'],
+      skip,
+      take: limit,
+      order: { createdAt: 'DESC' },
+    });
+
+    return { data, total };
+  }
+
+  async findOne(id: number): Promise<Agent> {
+    const agent = await this.agentsRepository.findOne({
+      where: { id },
+      relations: ['user', 'city', 'updatedBy'],
+    });
+
+    if (!agent) {
+      throw new NotFoundException('Agent not found');
+    }
+
+    return agent;
+  }
+
+  async update(id: number, updateAgentDto: UpdateAgentDto): Promise<Agent> {
+    const agent = await this.findOne(id);
+
+    if (updateAgentDto.cityId) {
+      agent.city = { id: updateAgentDto.cityId } as any;
+    }
+
+    Object.assign(agent, updateAgentDto);
+    return this.agentsRepository.save(agent);
+  }
+
+  async remove(id: number): Promise<void> {
+    const agent = await this.findOne(id);
+    await this.agentsRepository.remove(agent);
+  }
+
+  async approve(id: number, approveAgentDto: ApproveAgentDto): Promise<Agent> {
+    const agent = await this.findOne(id);
+
+    agent.status = approveAgentDto.status;
+    if (approveAgentDto.kycNotes) {
+      agent.kycNotes = approveAgentDto.kycNotes;
+    }
+
+    await this.notificationsService.createNotification({
+      userId: agent.user.id,
+      type: NotificationType.SYSTEM,
+      title: 'Agent Registration Decision',
+      message: `Your agent registration request has been ${approveAgentDto.status === 'approved' ? 'approved' : 'rejected'}`,
+      channel: NotificationChannel.IN_APP,
+    });
+
+    return this.agentsRepository.save(agent);
+  }
+
+  async findByUserId(userId: number): Promise<Agent> {
+    const agent = await this.agentsRepository.findOne({
+      where: { user: { id: userId } },
+      relations: ['user', 'city'],
+    });
+
+    if (!agent) {
+      throw new NotFoundException('Agent not found for this user');
+    }
+
+    return agent;
+  }
+}
