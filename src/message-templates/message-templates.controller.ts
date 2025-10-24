@@ -18,29 +18,28 @@ export class MessageTemplatesController {
     return this.messageTemplatesService.create(createMessageTemplateDto);
   }
 
-@Get()
+  @Get()
   @Roles(UserType.ADMIN, UserType.MARKETER)
   findAll(@Query() query: any) {
     const filters: Record<string, any> = {};
     if (typeof query.approved !== 'undefined') {
       // accept approved=true/false or boolean
-      filters.approved = (query.approved === 'true') ? true :
-                         (query.approved === 'false') ? false : query.approved;
+      filters.approved = query.approved === 'true' ? true : query.approved === 'false' ? false : query.approved;
     }
     if (query.channel) filters.channel = query.channel; // NotificationChannel enum/string
-    if (query.locale)  filters.locale  = query.locale;
+    if (query.locale) filters.locale = query.locale;
 
     return CRUD.findAll(
       this.messageTemplatesService.messageTemplatesRepository, // repo
-      'message_template',                                      // alias for QB
-      query.q || query.search,                                 // search term
-      query.page,                                              // page
-      query.limit,                                             // limit
-      query.sortBy ?? 'name',                                  // sortBy
-      query.sortOrder ?? 'ASC',                                // sortOrder
-      [],                                                      // relations
-      ['name', 'subject', 'body', 'locale'],                   // searchFields (root columns)
-      filters,                                                 // filters (exact matches)
+      'message_template', // alias for QB
+      query.q || query.search, // search term
+      query.page, // page
+      query.limit, // limit
+      query.sortBy ?? 'name', // sortBy
+      query.sortOrder ?? 'ASC', // sortOrder
+      [], // relations
+      ['name', 'subject', 'body', 'locale'], // searchFields (root columns)
+      filters, // filters (exact matches)
     );
   }
 
