@@ -1,99 +1,95 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } from '@nestjs/common';
+
+import {
+  Controller,
+  Post,
+  Get,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  Query,
+  UseGuards,
+  Req,
+} from '@nestjs/common';
+import { Request } from 'express';
 import { TrafficService } from './traffic.service';
-import { TrackVisitorDto, CreateConversionDto, TrafficQueryDto, CreateInfluencerDto, UpdateInfluencerDto } from '../../dto/traffic.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserType } from 'entities/global.entity';
-import { CRUD } from 'common/crud.service';
 
 @Controller('traffic')
 export class TrafficController {
-  constructor(private readonly trafficService: TrafficService) {}
+  constructor(private readonly service: TrafficService) {}
 
-  @Post('track')
-  trackVisitor(@Body() trackVisitorDto: TrackVisitorDto) {
-    return this.trafficService.trackVisitor(trackVisitorDto);
+  // -------- Partners (Admin/Marketer) --------
+  @Post('partners')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserType.ADMIN, UserType.MARKETER)
+  createPartner(@Body() body: any) {
+    // body: { name, kind?, platform?, campaignId, baseShareUrl?, utm?: { utm_source?, utm_campaign?, utm_content? } }
+    return this.service.createPartnerAndShareUrl(body);
   }
 
+  @Post('partners/:id/share-url')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserType.ADMIN, UserType.MARKETER)
+  buildShareUrl(@Param('id') id: string, @Body() body: any) {
+    // body: { baseShareUrl?, utm?: {...} }
+    return this.service.buildShareUrlForPartner(+id, body);
+  }
+
+  @Get('partners/:id/performance')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserType.ADMIN, UserType.MARKETER)
+  partnerPerformance(@Param('id') id: string, @Query() q: any) {
+    // q: { startDate?, endDate? }
+    return this.service.getPartnerPerformance(+id, q);
+  }
+
+  // (اختياري) إدارة بسيطة
+  @Get('partners')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserType.ADMIN, UserType.MARKETER)
+  listPartners(@Query() q: any) {
+    return this.service.listPartners(q);
+  }
+
+  @Patch('partners/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserType.ADMIN, UserType.MARKETER)
+  updatePartner(@Param('id') id: string, @Body() body: any) {
+    return this.service.updatePartner(+id, body);
+  }
+
+  @Delete('partners/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserType.ADMIN, UserType.MARKETER)
+  deletePartner(@Param('id') id: string) {
+    return this.service.deletePartner(+id);
+  }
+
+  // -------- Tracking (Public) --------
+  @Post('track')
+  track(@Body() body: any, @Req() req: Request) {
+    // body: { visitedUrl, landingPage?, referralCode, campaignId, utmSource?, utmCampaign?, utmContent? }
+    // التلقّط التلقائي لـ UA/IP
+    body.userAgent = body.userAgent ?? req.headers['user-agent'];
+    const fwd = (req.headers['x-forwarded-for'] as string) || '';
+    body.ipAddress = body.ipAddress ?? (fwd.split(',')[0]?.trim() || req.socket.remoteAddress || '');
+    return this.service.trackVisitor(body);
+  }
+
+  // -------- Conversions (Admin/Marketer) --------
   @Post('conversions')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserType.ADMIN, UserType.MARKETER)
-  createConversion(@Body() createConversionDto: CreateConversionDto) {
-    return this.trafficService.createConversion(createConversionDto);
-  }
-
-  @Get('visitors')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserType.ADMIN, UserType.MARKETER)
-  getVisitors(@Query() query: any) {
-    const filters: Record<string, any> = {};
-    if (query.marketerId) filters.marketer = { id: Number(query.marketerId) };
-    if (query.influencerId) filters.influencer = { id: Number(query.influencerId) };
-    if (query.source) filters.source = query.source;
-
-    return CRUD.findAll(this.trafficService.visitorTrackingRepository, 'visitor_tracking', query.q || query.search, query.page, query.limit, query.sortBy ?? 'createdAt', query.sortOrder ?? 'DESC', ['marketer', 'influencer'], ['utmSource', 'utmMedium', 'utmCampaign'], filters);
-  }
-
-  @Get('conversions')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserType.ADMIN, UserType.MARKETER)
-  getConversions(@Query() query: any) {
-    const filters: Record<string, any> = {};
-    if (query.marketerId) filters.marketer = { id: Number(query.marketerId) };
-
-    return CRUD.findAll(this.trafficService.conversionsRepository, 'conversion', query.q || query.search, query.page, query.limit, query.sortBy ?? 'convertedAt', query.sortOrder ?? 'DESC', ['marketer', 'visitor', 'user'], [], filters);
-  }
-
-  @Get('analytics/overview')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserType.ADMIN, UserType.MARKETER)
-  getTrafficOverview(@Query() query: TrafficQueryDto) {
-    return this.trafficService.getTrafficOverview(query);
-  }
-
-  @Post('influencers')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserType.ADMIN, UserType.MARKETER)
-  createInfluencer(@Body() createInfluencerDto: CreateInfluencerDto) {
-    return this.trafficService.createInfluencer(createInfluencerDto);
-  }
-
-  @Get('influencers')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserType.ADMIN, UserType.MARKETER)
-  getInfluencers(@Query() query: any) {
-    const filters: Record<string, any> = {};
-    if (query.userId) filters.user = { id: Number(query.userId) };
-
-    return CRUD.findAll(this.trafficService.influencersRepository, 'influencer', query.q || query.search, query.page, query.limit, query.sortBy ?? 'createdAt', query.sortOrder ?? 'DESC', ['user'], ['name', 'platform', 'code'], filters);
-  }
-
-  @Get('influencers/:id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserType.ADMIN, UserType.MARKETER)
-  getInfluencer(@Param('id') id: string) {
-    return this.trafficService.getInfluencer(+id);
-  }
-
-  @Patch('influencers/:id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserType.ADMIN, UserType.MARKETER)
-  updateInfluencer(@Param('id') id: string, @Body() updateInfluencerDto: UpdateInfluencerDto) {
-    return this.trafficService.updateInfluencer(+id, updateInfluencerDto);
-  }
-
-  @Delete('influencers/:id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserType.ADMIN, UserType.MARKETER)
-  deleteInfluencer(@Param('id') id: string) {
-    return this.trafficService.deleteInfluencer(+id);
-  }
-
-  @Get('influencers/:id/performance')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserType.ADMIN, UserType.MARKETER)
-  getInfluencerPerformance(@Param('id') id: string) {
-    return this.trafficService.getInfluencerPerformance(+id);
+  createConversion(@Body() body: any, @Req() req: Request) {
+    // body: { userId, type: 'registration'|'appointment', visitorId?, referralCode?, campaignId? }
+    const headerRef = (req.headers['x-ref'] as string) || undefined;
+    return this.service.createConversion({
+      ...body,
+      referralCode: body.referralCode ?? headerRef,
+    });
   }
 }

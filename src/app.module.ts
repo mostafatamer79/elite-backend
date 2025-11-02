@@ -15,9 +15,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { CmsModule } from './cms/cms.module';
 import { QualityModule } from './quality/quality.module';
 import { ReportsModule } from './reports/reports.module';
-import { MarketersModule } from './marketers/marketers.module';
 import { TrafficModule } from './traffic/traffic.module';
-import { ShortLinksModule } from './short-links/short-links.module';
 import { PropertyListingRequestsModule } from './property-listing-requests/property-listing-requests.module';
 import { AgentAvailabilityModule } from './agent-availability/agent-availability.module';
 import { CalendarModule } from './calendar/calendar.module';
@@ -28,6 +26,8 @@ import { MessageTemplatesModule } from './message-templates/message-templates.mo
 import { Role, UserRole } from 'entities/global.entity';
 import { SystemModule } from './system-status/system-status.module';
 import { FavoritesModule } from './favorite-property/favorite-property.module';
+import { ExportModule } from './export/export.module';
+import { TeamModule } from './team-member/team-member.module';
 
 @Module({
   imports: [
@@ -43,6 +43,7 @@ import { FavoritesModule } from './favorite-property/favorite-property.module';
       synchronize: true,
     }),
 
+		
     // JwtModule.register({
     //   global: true,
     //   secret: process.env.JWT_SECRET,
@@ -61,9 +62,7 @@ import { FavoritesModule } from './favorite-property/favorite-property.module';
     CmsModule,
     QualityModule,
     ReportsModule,
-    MarketersModule,
     TrafficModule,
-    ShortLinksModule,
     PropertyListingRequestsModule,
     AgentAvailabilityModule,
     CalendarModule,
@@ -73,6 +72,8 @@ import { FavoritesModule } from './favorite-property/favorite-property.module';
     MessageTemplatesModule,
     SystemModule,
     FavoritesModule,
+		ExportModule,
+		TeamModule
   ],
   providers: [
 		QueryFailedErrorFilter , 

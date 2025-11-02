@@ -4,7 +4,6 @@ import { DataSource } from 'typeorm';
 import * as argon from 'argon2';
 import { User, UserType, VerificationStatus } from '../entities/global.entity';
 import { Agent, AgentApprovalStatus } from '../entities/global.entity';
-import { Marketer } from '../entities/global.entity';
 import { City } from '../entities/global.entity';
 import { Area } from '../entities/global.entity';
 import { PropertyType } from '../entities/global.entity';
@@ -16,10 +15,9 @@ import { AgentPayment, PaymentStatus, PaymentGateway } from '../entities/global.
 import { AgentBalance } from '../entities/global.entity';
 import { Campaign, CampaignChannel, CampaignAudience, CampaignRunType, CampaignStatus } from '../entities/global.entity';
 import { Notification, NotificationType, NotificationChannel, NotificationStatus } from '../entities/global.entity';
-import { Influencer, SocialPlatform } from '../entities/global.entity';
+import { SocialPlatform } from '../entities/global.entity';
 import { VisitorTracking, TrafficSource } from '../entities/global.entity';
 import { Conversion, ConversionType } from '../entities/global.entity';
-import { ShortLink } from '../entities/global.entity';
 import { SiteSettings } from '../entities/global.entity';
 import { FooterSettings } from '../entities/global.entity';
 import { StaticPage, StaticPageSlug } from '../entities/global.entity';
@@ -150,24 +148,6 @@ export const seedAgents = async (dataSource: DataSource) => {
 
   await agentRepository.save(agentData);
   console.log('✅ Seeded agents successfully');
-};
-
-// Seed Marketers
-export const seedMarketers = async (dataSource: DataSource) => {
-  const marketerRepository = dataSource.getRepository(Marketer);
-  const userRepository = dataSource.getRepository(User);
-
-  const marketers = await userRepository.find({ where: { userType: UserType.MARKETER } });
-  const adminUser = await userRepository.findOne({ where: { userType: UserType.ADMIN } });
-
-  const marketerData = marketers.map((marketer, index) => ({
-    user: marketer,
-    referralCode: `REF${1000 + index}`,
-    createdBy: adminUser,
-  }));
-
-  await marketerRepository.save(marketerData);
-  console.log('✅ Seeded marketers successfully');
 };
 
 // Seed Cities
@@ -559,121 +539,6 @@ export const seedNotifications = async (dataSource: DataSource) => {
   console.log('✅ Seeded notifications successfully');
 };
 
-// Seed Influencers
-export const seedInfluencers = async (dataSource: DataSource) => {
-  const influencerRepository = dataSource.getRepository(Influencer);
-
-  const influencers = [
-    {
-      name: 'أحمد العتيبي',
-      handle: '@ahmed_realestate',
-      platform: SocialPlatform.INSTAGRAM,
-      code: 'AHMED01',
-      isActive: true,
-    },
-    {
-      name: 'سارة القحطاني',
-      handle: '@sara_properties',
-      platform: SocialPlatform.SNAPCHAT,
-      code: 'SARA01',
-      isActive: true,
-    },
-    {
-      name: 'محمد الشمري',
-      platform: SocialPlatform.TIKTOK,
-      code: 'MOHD01',
-      isActive: true,
-    },
-  ];
-
-  await influencerRepository.save(influencers);
-  console.log('✅ Seeded influencers successfully');
-};
-
-// Seed Traffic Data
-export const seedTraffic = async (dataSource: DataSource) => {
-  const visitorRepository = dataSource.getRepository(VisitorTracking);
-  const conversionRepository = dataSource.getRepository(Conversion);
-
-  const marketerRepository = dataSource.getRepository(Marketer);
-  const influencerRepository = dataSource.getRepository(Influencer);
-  const userRepository = dataSource.getRepository(User);
-
-  const marketers = await marketerRepository.find();
-  const influencers = await influencerRepository.find();
-  const customers = await userRepository.find({ where: { userType: UserType.CUSTOMER } });
-
-  // Seed Visitors
-  const visitors = [
-    {
-      referralCode: 'REF1000',
-      marketer: marketers[0],
-      source: TrafficSource.INSTAGRAM,
-      utmSource: 'instagram',
-      utmCampaign: 'winter_promo',
-      influencer: influencers[0],
-      visitedUrl: 'https://realestate.com/properties',
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      ipAddress: '192.168.1.100',
-    },
-    {
-      source: TrafficSource.DIRECT,
-      visitedUrl: 'https://realestate.com',
-      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-      ipAddress: '192.168.1.101',
-    },
-  ];
-
-  const savedVisitors = await visitorRepository.save(visitors);
-
-  // Seed Conversions
-  const conversions = [
-    {
-      marketer: marketers[0],
-      visitor: savedVisitors[0],
-      user: customers[0],
-      conversionType: ConversionType.REGISTRATION,
-      convertedAt: new Date(),
-    },
-  ];
-
-  await conversionRepository.save(conversions);
-  console.log('✅ Seeded traffic and conversions successfully');
-};
-
-// Seed Short Links
-export const seedShortLinks = async (dataSource: DataSource) => {
-  const shortLinkRepository = dataSource.getRepository(ShortLink);
-
-  const marketerRepository = dataSource.getRepository(Marketer);
-  const influencerRepository = dataSource.getRepository(Influencer);
-  const userRepository = dataSource.getRepository(User);
-
-  const marketers = await marketerRepository.find();
-  const influencers = await influencerRepository.find();
-  const adminUser = await userRepository.findOne({ where: { userType: UserType.ADMIN } });
-
-  const shortLinks = [
-    {
-      slug: 'winter24',
-      destination: 'https://realestate.com/properties?campaign=winter2024',
-      marketer: marketers[0],
-      isActive: true,
-      createdBy: adminUser,
-    },
-    {
-      slug: 'ahmedref',
-      destination: 'https://realestate.com/register?ref=ahmed01',
-      influencer: influencers[0],
-      isActive: true,
-      createdBy: adminUser,
-    },
-  ];
-
-  await shortLinkRepository.save(shortLinks);
-  console.log('✅ Seeded short links successfully');
-};
-
 // Seed CMS Content
 export const seedCMS = async (dataSource: DataSource) => {
   const siteSettingsRepository = dataSource.getRepository(SiteSettings);
@@ -872,16 +737,12 @@ async function runSeeder() {
     await seedAreas(dataSource);
     await seedPropertyTypes(dataSource);
     await seedAgents(dataSource);
-    await seedMarketers(dataSource);
     await seedProperties(dataSource);
     await seedAppointments(dataSource);
     await seedReviews(dataSource);
     await seedPayments(dataSource);
     await seedCampaigns(dataSource);
     await seedNotifications(dataSource);
-    await seedInfluencers(dataSource);
-    await seedTraffic(dataSource);
-    await seedShortLinks(dataSource);
     await seedCMS(dataSource);
     await seedMessageTemplates(dataSource);
 

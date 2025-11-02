@@ -1,175 +1,84 @@
 {
   "info": {
-    "name": "Favorite Properties API",
-    "_postman_id": "7f0f3b1e-0b2a-4e0b-91a2-6f7cfavprops001",
-    "description": "Favorites feature: add, toggle, list, check, remove.",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    "_postman_id": "8d9dbe58-47b5-44fd-8e6f-9010c1276aa1",
+    "name": "Team Module CRUD",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "chatgpt"
   },
   "item": [
     {
-      "name": "Favorites",
-      "item": [
-        {
-          "name": "Add to Favorites",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{authToken}}",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"propertyId\": 101,\n  \"note\": \"Shortlist – sea view\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/favorites",
-              "host": ["{{baseUrl}}"],
-              "path": ["favorites"]
-            },
-            "description": "Add a property to the authenticated user's favorites. Admins may add on behalf of a user by passing ?userId=..."
-          },
-          "response": []
+      "name": "Create Team Member (with image)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "name", "value": "Ahmed Ali", "type": "text" },
+            { "key": "position", "value": "Marketing Manager", "type": "text" },
+            { "key": "image", "type": "file", "src": [] }
+          ]
         },
-        {
-          "name": "Toggle Favorite (on/off)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{authToken}}",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/favorites/:propertyId/toggle",
-              "host": ["{{baseUrl}}"],
-              "path": ["favorites", ":propertyId", "toggle"],
-              "variable": [
-                { "key": "propertyId", "value": "101" }
-              ],
-              "query": [
-                {
-                  "key": "userId",
-                  "value": "",
-                  "description": "Optional (ADMIN/QUALITY) perform for specific user"
-                }
-              ]
-            },
-            "description": "Toggles a favorite for the given property ID. Creates if missing; soft-deletes if exists."
-          },
-          "response": []
-        },
-        {
-          "name": "List My Favorites",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{authToken}}",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/favorites?page=1&limit=20",
-              "host": ["{{baseUrl}}"],
-              "path": ["favorites"],
-              "query": [
-                { "key": "page", "value": "1" },
-                { "key": "limit", "value": "20" },
-                {
-                  "key": "userId",
-                  "value": "",
-                  "description": "Optional (ADMIN/QUALITY) list favorites of a specific user"
-                }
-              ]
-            },
-            "description": "Paginated list of favorites for the current user. Admin/Quality can pass userId."
-          },
-          "response": []
-        },
-        {
-          "name": "Check if Favorite",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{authToken}}",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/favorites/:propertyId/is-favorite",
-              "host": ["{{baseUrl}}"],
-              "path": ["favorites", ":propertyId", "is-favorite"],
-              "variable": [
-                { "key": "propertyId", "value": "101" }
-              ],
-              "query": [
-                {
-                  "key": "userId",
-                  "value": "",
-                  "description": "Optional (ADMIN/QUALITY) check for a specific user"
-                }
-              ]
-            },
-            "description": "Returns { favorite: true|false } for the given property."
-          },
-          "response": []
-        },
-        {
-          "name": "Remove from Favorites",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{authToken}}",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/favorites/:propertyId",
-              "host": ["{{baseUrl}}"],
-              "path": ["favorites", ":propertyId"],
-              "variable": [
-                { "key": "propertyId", "value": "101" }
-              ],
-              "query": [
-                {
-                  "key": "userId",
-                  "value": "",
-                  "description": "Optional (ADMIN/QUALITY) remove for a specific user"
-                }
-              ]
-            },
-            "description": "Soft-deletes the favorite record for the property."
-          },
-          "response": []
-        }
-      ]
-    }
-  ],
-  "variable": [
-    {
-      "key": "baseUrl",
-      "value": "http://localhost:3000",
-      "type": "string"
+        "url": { "raw": "http://localhost:3000/team", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["team"] }
+      }
     },
     {
-      "key": "authToken",
-      "value": "",
-      "type": "string"
+      "name": "Get All Team Members",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "http://localhost:3000/team", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["team"] }
+      }
+    },
+    {
+      "name": "Get Team Member by ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/team/1",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["team", "1"]
+        }
+      }
+    },
+    {
+      "name": "Update Team Member (with optional new image)",
+      "request": {
+        "method": "PUT",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "name", "value": "Ahmed A.", "type": "text" },
+            { "key": "position", "value": "Lead Developer", "type": "text" },
+            { "key": "image", "type": "file", "src": [] }
+          ]
+        },
+        "url": {
+          "raw": "http://localhost:3000/team/1",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["team", "1"]
+        }
+      }
+    },
+    {
+      "name": "Delete Team Member (soft delete)",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/team/1",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["team", "1"]
+        }
+      }
     }
   ]
 }

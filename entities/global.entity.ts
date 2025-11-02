@@ -343,20 +343,92 @@ export class Agent extends CoreEntity {
   updatedBy?: User | null;
 }
 
-@Entity('marketers')
-@Unique('UQ_marketers_user', ['user'])
-@Index('UQ_marketers_referral_code', ['referralCode'], { unique: true })
-export class Marketer extends CoreEntity {
-  @OneToOne(() => User, { eager: true })
-  @JoinColumn({ name: 'user_id' })
-  user: User;
+/* ===================== Campaigns & Messaging ===================== */
+@Entity('campaigns')
+export class Campaign extends CoreEntity {
+  @Column({ type: 'varchar', length: 255 })
+  name: string; // internal
 
-  @Column({ name: 'referral_code', type: 'varchar', length: 64, unique: true })
-  referralCode: string;
+  @Column({ type: 'varchar', length: 255 })
+  title: string;
 
-  @ManyToOne(() => User, { nullable: true })
+  @Column({ type: 'text', nullable: true })
+  description?: string | null;
+
+  @Column({ name: 'target_channel', type: 'enum', enum: CampaignChannel, default: CampaignChannel.WHATSAPP })
+  targetChannel: CampaignChannel;
+
+  @Column({ name: 'target_audience', type: 'enum', enum: CampaignAudience, default: CampaignAudience.ALL_USERS })
+  targetAudience: CampaignAudience;
+
+  @Column({ name: 'run_type', type: 'enum', enum: CampaignRunType, default: CampaignRunType.ONCE })
+  runType: CampaignRunType;
+
+  @Column({ name: 'run_once_datetime', type: 'timestamptz', nullable: true })
+  runOnceDatetime?: Date | null;
+
+  @Column({ name: 'start_date', type: 'date', nullable: true })
+  startDate?: string | null;
+
+  @Column({ name: 'end_date', type: 'date', nullable: true })
+  endDate?: string | null;
+
+  @Column({ name: 'run_frequency', type: 'enum', enum: CampaignFrequency, nullable: true })
+  runFrequency?: CampaignFrequency | null;
+
+  @Column({ name: 'run_time', type: 'time', nullable: true })
+  runTime?: string | null;
+
+  @Column({ type: 'enum', enum: CampaignStatus, default: CampaignStatus.DRAFT })
+  status: CampaignStatus;
+
+  @Column({ name: 'message_content', type: 'varchar', length: 4000 })
+  messageContent: string;
+
+  @Column({ name: 'actual_recipients', type: 'int', nullable: true })
+  actualRecipients?: number | null;
+
+  @Column({ type: 'int', nullable: true })
+  views?: number | null;
+
+  @Column({ type: 'int', nullable: true })
+  responses?: number | null;
+
+  @ManyToOne(() => User, { eager: true })
   @JoinColumn({ name: 'created_by' })
-  createdBy?: User | null;
+  createdBy: User;
+
+  @OneToMany(() => CampaignImage, i => i.campaign, { cascade: true })
+  images: CampaignImage[];
+}
+
+@Entity('campaigns_images')
+export class CampaignImage extends CoreEntity {
+  @ManyToOne(() => Campaign, c => c.images, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'campaign_id' })
+  campaign: Campaign;
+
+  @Column({ name: 'image_url', type: 'varchar', length: 500 })
+  imageUrl: string;
+}
+
+@Entity('message_templates')
+@Index('UQ_message_templates_name_channel', ['name', 'channel'], { unique: true })
+export class MessageTemplate extends CoreEntity {
+  @Column({ type: 'varchar', length: 150 })
+  name: string; // e.g., APPOINTMENT_REMINDER_AR
+
+  @Column({ type: 'enum', enum: NotificationChannel })
+  channel: NotificationChannel;
+
+  @Column({ type: 'text' })
+  body: string; // supports placeholders like {{customer_name}}
+
+  @Column({ type: 'boolean', default: false })
+  approved: boolean; // WhatsApp Business approval
+
+  @Column({ name: 'locale', type: 'varchar', length: 10, default: 'ar' })
+  locale: string;
 }
 
 /* ===================== RBAC (Optional Granular) ===================== */
@@ -438,128 +510,100 @@ export class AuthSession extends CoreEntity {
 }
 
 /* ===================== Traffic & UTM ===================== */
-@Entity('influencers')
-@Index('UQ_influencers_code', ['code'], { unique: true })
-export class Influencer extends CoreEntity {
-  @Column({ type: 'varchar', length: 150 })
+
+@Entity('referral_partners')
+@Unique('UQ_partner_campaign_name_kind', [ 'campaign.id' ,'name', 'kind']) // ✅ جديد
+@Index('IDX_partner_campaign', ['campaign'])
+@Index('UQ_referral_partner_code', ['referralCode'], { unique: true })
+export class ReferralPartner extends CoreEntity {
+  @Column({ type: 'varchar', length: 255 , nullable : true })
   name: string;
 
-  @Column({ type: 'varchar', length: 150, nullable: true })
-  handle?: string | null;
+  // external | internal
+  @Column({ type: 'varchar', length: 20, default: 'external' })
+  kind: 'external' | 'internal';
 
-  @Column({ type: 'enum', enum: SocialPlatform, default: SocialPlatform.OTHER })
-  platform: SocialPlatform;
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  platform?: string | null;
 
-  @Column({ type: 'varchar', length: 64, unique: true })
-  code: string;
+  @Column({ name: 'referral_code', type: 'varchar', length: 32 , nullable : true})
+  referralCode: string;
 
-  @ManyToOne(() => User, { nullable: true })
-  @JoinColumn({ name: 'user_id' })
-  user?: User | null;
+  @ManyToOne(() => Campaign, { eager: true , nullable : true })
+  @JoinColumn({ name: 'campaign_id' })
+  campaign: Campaign;
 
   @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive: boolean;
 }
 
 @Entity('visitor_tracking')
-@Index('IDX_visitor_created_at', ['createdAt'])
+@Index('IDX_visit_partner_createdAt', ['partner', 'createdAt'])
+@Index('IDX_visit_campaign_createdAt', ['campaign', 'createdAt'])
+@Index('IDX_visit_referralCode_createdAt', ['referralCode', 'createdAt'])
 export class VisitorTracking extends CoreEntity {
-  @Column({ name: 'referral_code', type: 'varchar', length: 64, nullable: true })
+  @ManyToOne(() => ReferralPartner, { nullable: true })
+  @JoinColumn({ name: 'partner_id' })
+  partner?: ReferralPartner | null;
+
+  @ManyToOne(() => Campaign, { nullable: true })
+  @JoinColumn({ name: 'campaign_id' })
+  campaign?: Campaign | null;
+
+  @Column({ name: 'referral_code', type: 'varchar', length: 32, nullable: true })
   referralCode?: string | null;
 
-  @ManyToOne(() => Marketer, { nullable: true })
-  @JoinColumn({ name: 'marketer_id' })
-  marketer?: Marketer | null;
+  @Column({ name: 'visited_url', type: 'varchar', length: 1000, nullable: true })
+  visitedUrl: string;
 
-  @Column({ type: 'enum', enum: TrafficSource, default: TrafficSource.DIRECT })
-  source: TrafficSource;
+  @Column({ name: 'landing_page', type: 'varchar', length: 500, nullable: true })
+  landingPage?: string | null;
 
   @Column({ name: 'utm_source', type: 'varchar', length: 100, nullable: true })
   utmSource?: string | null;
 
-  @Column({ name: 'utm_medium', type: 'varchar', length: 100, nullable: true })
-  utmMedium?: string | null;
-
   @Column({ name: 'utm_campaign', type: 'varchar', length: 150, nullable: true })
   utmCampaign?: string | null;
 
-  @Column({ name: 'utm_term', type: 'varchar', length: 150, nullable: true })
-  utmTerm?: string | null;
-
   @Column({ name: 'utm_content', type: 'varchar', length: 150, nullable: true })
   utmContent?: string | null;
-
-  @ManyToOne(() => Influencer, { nullable: true })
-  @JoinColumn({ name: 'influencer_id' })
-  influencer?: Influencer | null;
-
-  @Column({ name: 'landing_page', type: 'varchar', length: 255, nullable: true })
-  landingPage?: string | null;
 
   @Column({ name: 'user_agent', type: 'varchar', length: 255, nullable: true })
   userAgent?: string | null;
 
   @Column({ name: 'ip_address', type: 'varchar', length: 45, nullable: true })
   ipAddress?: string | null;
-
-  @Column({ name: 'visited_url', type: 'varchar', length: 500 })
-  visitedUrl: string;
-
-  // For indexes convenience
-  @RelationId((v: VisitorTracking) => v.influencer)
-  influencerId?: number;
-
-  @RelationId((v: VisitorTracking) => v.marketer)
-  marketerId?: number;
 }
 
 @Entity('conversions')
+@Index('IDX_conv_partner_convertedAt', ['partner', 'convertedAt'])
+@Index('IDX_conv_campaign_convertedAt', ['campaign', 'convertedAt'])
+@Index('IDX_conv_user_convertedAt', ['user', 'convertedAt'])
 export class Conversion extends CoreEntity {
-  @ManyToOne(() => Marketer, { nullable: true })
-  @JoinColumn({ name: 'marketer_id' })
-  marketer?: Marketer | null;
-
-  @ManyToOne(() => VisitorTracking, { eager: true })
+  @ManyToOne(() => VisitorTracking, { eager: true, nullable: true })
   @JoinColumn({ name: 'visitor_id' })
-  visitor: VisitorTracking;
+  visitor?: VisitorTracking | null;
+
+  @ManyToOne(() => ReferralPartner, { eager: true, nullable: true })
+  @JoinColumn({ name: 'partner_id' })
+  partner?: ReferralPartner | null;
+
+  @ManyToOne(() => Campaign, { eager: true, nullable: true })
+  @JoinColumn({ name: 'campaign_id' })
+  campaign?: Campaign | null;
 
   @ManyToOne(() => User, { eager: true })
   @JoinColumn({ name: 'user_id' })
   user: User;
 
-  @Column({ name: 'conversion_type', type: 'enum', enum: ConversionType, default: ConversionType.REGISTRATION })
-  conversionType: ConversionType;
+  @Column({ type: 'varchar', length: 32, name: 'referral_code', nullable: true })
+  referralCode?: string | null;
+
+  @Column({ type: 'varchar', length: 32, nullable: true })
+  type: ConversionType;
 
   @Column({ name: 'converted_at', type: 'timestamptz', default: () => 'NOW()' })
   convertedAt: Date;
-}
-
-@Entity('short_links')
-@Index('UQ_short_links_slug', ['slug'], { unique: true })
-export class ShortLink extends CoreEntity {
-  @Column({ type: 'varchar', length: 40, unique: true })
-  slug: string;
-
-  @Column({ type: 'varchar', length: 500 })
-  destination: string;
-
-  @ManyToOne(() => Influencer, { nullable: true })
-  @JoinColumn({ name: 'influencer_id' })
-  influencer?: Influencer | null;
-
-  @ManyToOne(() => Marketer, { nullable: true })
-  @JoinColumn({ name: 'marketer_id' })
-  marketer?: Marketer | null;
-
-  @Column({ name: 'campaign_id', type: 'int', nullable: true })
-  campaignId?: number | null;
-
-  @Column({ name: 'is_active', type: 'boolean', default: true })
-  isActive: boolean;
-
-  @ManyToOne(() => User, { nullable: true })
-  @JoinColumn({ name: 'created_by' })
-  createdBy?: User | null;
 }
 
 /* ===================== Master Data ===================== */
@@ -1070,94 +1114,6 @@ export class AgentPayoutAccount extends CoreEntity {
   swiftCode?: string | null;
 }
 
-/* ===================== Campaigns & Messaging ===================== */
-@Entity('campaigns')
-export class Campaign extends CoreEntity {
-  @Column({ type: 'varchar', length: 255 })
-  name: string; // internal
-
-  @Column({ type: 'varchar', length: 255 })
-  title: string;
-
-  @Column({ type: 'text', nullable: true })
-  description?: string | null;
-
-  @Column({ name: 'target_channel', type: 'enum', enum: CampaignChannel, default: CampaignChannel.WHATSAPP })
-  targetChannel: CampaignChannel;
-
-  @Column({ name: 'target_audience', type: 'enum', enum: CampaignAudience, default: CampaignAudience.ALL_USERS })
-  targetAudience: CampaignAudience;
-
-  @Column({ name: 'run_type', type: 'enum', enum: CampaignRunType, default: CampaignRunType.ONCE })
-  runType: CampaignRunType;
-
-  @Column({ name: 'run_once_datetime', type: 'timestamptz', nullable: true })
-  runOnceDatetime?: Date | null;
-
-  @Column({ name: 'start_date', type: 'date', nullable: true })
-  startDate?: string | null;
-
-  @Column({ name: 'end_date', type: 'date', nullable: true })
-  endDate?: string | null;
-
-  @Column({ name: 'run_frequency', type: 'enum', enum: CampaignFrequency, nullable: true })
-  runFrequency?: CampaignFrequency | null;
-
-  @Column({ name: 'run_time', type: 'time', nullable: true })
-  runTime?: string | null;
-
-  @Column({ type: 'enum', enum: CampaignStatus, default: CampaignStatus.DRAFT })
-  status: CampaignStatus;
-
-  @Column({ name: 'message_content', type: 'varchar', length: 4000 })
-  messageContent: string;
-
-  @Column({ name: 'actual_recipients', type: 'int', nullable: true })
-  actualRecipients?: number | null;
-
-  @Column({ type: 'int', nullable: true })
-  views?: number | null;
-
-  @Column({ type: 'int', nullable: true })
-  responses?: number | null;
-
-  @ManyToOne(() => User, { eager: true })
-  @JoinColumn({ name: 'created_by' })
-  createdBy: User;
-
-  @OneToMany(() => CampaignImage, i => i.campaign, { cascade: true })
-  images: CampaignImage[];
-}
-
-@Entity('campaigns_images')
-export class CampaignImage extends CoreEntity {
-  @ManyToOne(() => Campaign, c => c.images, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'campaign_id' })
-  campaign: Campaign;
-
-  @Column({ name: 'image_url', type: 'varchar', length: 500 })
-  imageUrl: string;
-}
-
-@Entity('message_templates')
-@Index('UQ_message_templates_name_channel', ['name', 'channel'], { unique: true })
-export class MessageTemplate extends CoreEntity {
-  @Column({ type: 'varchar', length: 150 })
-  name: string; // e.g., APPOINTMENT_REMINDER_AR
-
-  @Column({ type: 'enum', enum: NotificationChannel })
-  channel: NotificationChannel;
-
-  @Column({ type: 'text' })
-  body: string; // supports placeholders like {{customer_name}}
-
-  @Column({ type: 'boolean', default: false })
-  approved: boolean; // WhatsApp Business approval
-
-  @Column({ name: 'locale', type: 'varchar', length: 10, default: 'ar' })
-  locale: string;
-}
-
 @Entity('notifications')
 export class Notification extends CoreEntity {
   @ManyToOne(() => User, { eager: true })
@@ -1480,10 +1436,3 @@ export class ReportSnapshot extends CoreEntity {
   @Column({ name: 'generated_at', type: 'timestamptz', default: () => 'NOW()' })
   generatedAt: Date;
 }
-
-/* ===================== TODOs / Notes =====================
-- تم تضمين كل النقاط المطلوبة: Sessions, RBAC, Calendar, Geo, Templates,
-  Payment Gateway details, Payout Accounts, Content Versioning, Quality Cases,
-  Report Snapshots.
-- لو عايز أطلّع Migration TypeORM بالكامل أو Seeder ابتدائي (Roles/Permissions/Templates)، قولي وأنا أجهزه لك.
-=========================================================== */
