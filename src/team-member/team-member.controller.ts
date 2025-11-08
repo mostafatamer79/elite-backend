@@ -66,8 +66,7 @@ export class TeamController {
     let uploadedFilename: string | undefined;
     if (files?.image?.[0]) {
       const f = files.image[0];
-      // await validateAndOptimizeImageIfPossible(toAbsPathImages(f.filename));
-      dto.imageUrl = toWebPathImages(f.filename); // replace with the newly uploaded
+      dto.imageUrl = toWebPathImages(f.filename);
       uploadedFilename = f.filename;
     }
     // If no new file and no imageUrl in body, we keep the old image (no error)

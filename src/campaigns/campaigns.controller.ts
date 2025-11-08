@@ -15,6 +15,7 @@ export class CampaignsController {
   @Post()
   @Roles(UserType.ADMIN, UserType.MARKETER)
   create(@Body() createCampaignDto: CreateCampaignDto , @Req() req : any) {
+		console.log("here");
     return this.campaignsService.create(createCampaignDto , req.user.id);
   }
 
