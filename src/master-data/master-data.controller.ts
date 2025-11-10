@@ -144,4 +144,25 @@ export class MasterDataController {
   updatePropertyType(@Param('id') id: string, @Body() updatePropertyTypeDto: UpdatePropertyTypeDto) {
     return this.masterDataService.updatePropertyType(+id, updatePropertyTypeDto);
   }
+@Delete('cities/:id')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserType.ADMIN)
+removeCity(@Param('id') id: string) {
+  return this.masterDataService.removeCity(+id);
+}
+
+@Delete('areas/:id')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserType.ADMIN)
+removeArea(@Param('id') id: string) {
+  return this.masterDataService.removeArea(+id);
+}
+
+@Delete('property-types/:id')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserType.ADMIN)
+removePropertyType(@Param('id') id: string) {
+  return this.masterDataService.removePropertyType(+id);
+}
+
 }

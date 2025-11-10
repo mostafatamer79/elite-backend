@@ -150,4 +150,18 @@ export class MasterDataService {
     Object.assign(propertyType, updatePropertyTypeDto);
     return this.propertyTypesRepository.save(propertyType);
   }
+  async removeCity(id: number): Promise<void> {
+    const city = await this.getCity(id);
+    await this.citiesRepository.remove(city); 
+  }
+  
+  async removeArea(id: number): Promise<void> {
+    const area = await this.getArea(id);
+    await this.areasRepository.remove(area); 
+  }
+  
+  async removePropertyType(id: number): Promise<void> {
+    const propertyType = await this.getPropertyType(id);
+    await this.propertyTypesRepository.remove(propertyType);
+  }
 }

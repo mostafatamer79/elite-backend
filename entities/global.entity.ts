@@ -611,7 +611,7 @@ export class Conversion extends CoreEntity {
 @Entity('areas')
 @Index('IDX_areas_active', ['isActive'])
 export class Area extends CoreEntity {
-  @ManyToOne(() => City, { eager: true })
+  @ManyToOne(() => City, { eager: true ,onDelete: 'CASCADE' })
   @JoinColumn({ name: 'city_id' })
   city: City;
 
@@ -645,16 +645,17 @@ export class Property extends CoreEntity {
   @JoinColumn({ name: 'property_type_id' })
   propertyType: PropertyType;
 
-  @ManyToOne(() => City, { eager: true })
+  @ManyToOne(() => City, { eager: true, onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'city_id' })
   city: City;
-
+  
+  @ManyToOne(() => Area, { eager: true, onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'area_id' })
+  area: Area;
   @RelationId((p: Property) => p.city)
   cityId: number;
 
-  @ManyToOne(() => Area, { eager: true })
-  @JoinColumn({ name: 'area_id' })
-  area: Area;
+
 
   @RelationId((p: Property) => p.area)
   areaId: number;

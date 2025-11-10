@@ -55,7 +55,7 @@ export class UsersController {
     const filters: Record<string, any> = {};
     if (query.userType) filters.userType = query.userType;
 
-    return CRUD.findAll(this.usersService.usersRepository, 'user', query.search, query.page, query.limit, query.sortBy, query.sortOrder, [], ['fullName', 'email', 'phoneNumber'], filters);
+    return CRUD.findAll(this.usersService.usersRepository, 'usr', query.search, query.page, query.limit, query.sortBy, query.sortOrder, [], ['fullName', 'email', 'phoneNumber'], filters);
   }
 
   @Get(':id')

@@ -40,8 +40,8 @@ export class AgentsService {
     const agent = this.agentsRepository.create({
       user,
       city: { id: createAgentDto.cityId },
-      identityProofUrl: createAgentDto.identityProofUrl,
-      residencyDocumentUrl: createAgentDto.residencyDocumentUrl,
+      identityProofUrl: createAgentDto.identityProof,
+      residencyDocumentUrl: createAgentDto.residencyDocument,
     });
 
     await this.notificationsService.notifyUserType(UserType.ADMIN, {

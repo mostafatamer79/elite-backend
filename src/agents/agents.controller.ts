@@ -40,11 +40,11 @@ export class AgentsController {
   @UseInterceptors(
     FileFieldsInterceptor(
       [
-        { name: "identityProof", maxCount: 1 },
-        { name: "residencyDocument", maxCount: 1 },
+        { name: 'identityProof', maxCount: 1 },
+        { name: 'residencyDocument', maxCount: 1 },
       ],
-      imageUploadOptions
-    )
+      imageUploadOptions,
+    ),
   )
   async create(
     @Body() createAgentDto: CreateAgentDto,
@@ -53,29 +53,32 @@ export class AgentsController {
     files?: {
       identityProof?: Express.Multer.File[];
       residencyDocument?: Express.Multer.File[];
-    }
+    },
   ) {
-    if(req.user.type !== UserType.ADMIN && !createAgentDto.userId){
-      throw new BadRequestException("the admin must send userId of customer")
-    } 
-    if(req.user.type !== UserType.ADMIN){
-      createAgentDto.userId = req.user.id
+    createAgentDto.cityId = Number(createAgentDto.cityId); 
+    if (isNaN(createAgentDto.cityId)) {
+      throw new BadRequestException('cityId must be a number');
+    }
+    if (req.user.type !== UserType.ADMIN && !createAgentDto.userId) {
+      throw new BadRequestException(
+        'The admin must provide userId for the customer',
+      );
+    }
+    if (req.user.type !== UserType.ADMIN) {
+      createAgentDto.userId = req.user.id;
     }
 
     if (files?.identityProof?.[0]) {
-      createAgentDto.identityProofUrl = `/uploads/images/${files.identityProof[0].filename}`;
+      createAgentDto.identityProof = `/uploads/images/${files.identityProof[0].filename}`;
     }
     if (files?.residencyDocument?.[0]) {
-      createAgentDto.residencyDocumentUrl = `/uploads/images/${files.residencyDocument[0].filename}`;
+      createAgentDto.residencyDocument = `/uploads/images/${files.residencyDocument[0].filename}`;
     }
 
-    // Enforce presence: either URL in body or uploaded file must exist
-    if (
-      !createAgentDto.identityProofUrl ||
-      !createAgentDto.residencyDocumentUrl
-    ) {
+    // Ensure either URL or file is provided
+    if (!createAgentDto.identityProof || !createAgentDto.residencyDocument) {
       throw new BadRequestException(
-        "identityProof or residencyDocument is missing (send as URL or file)."
+        'identityProof or residencyDocument is missing (send as URL or file)',
       );
     }
 

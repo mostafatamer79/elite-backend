@@ -2,7 +2,6 @@ import { IsNotEmpty, IsNumber, IsEnum, IsOptional, IsString } from 'class-valida
 import { AgentApprovalStatus } from '../entities/global.entity';
 
 export class CreateAgentDto {
-  @IsNotEmpty()
   @IsNumber()
   @IsOptional()
   userId?: number;
@@ -11,13 +10,13 @@ export class CreateAgentDto {
   @IsNumber()
   cityId: number;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  identityProofUrl: string;
+  identityProof: string; 
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  residencyDocumentUrl: string;
+  residencyDocument?: string;
 }
 
 export class UpdateAgentDto {

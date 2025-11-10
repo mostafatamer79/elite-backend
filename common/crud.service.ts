@@ -24,8 +24,11 @@ export class CRUD {
     }
 
     const skip = (pageNumber - 1) * limitNumber;
-    const query = repository.createQueryBuilder(entityName).skip(skip).take(limitNumber);
-
+    const safeAlias = ['user', 'order', 'group'].includes(entityName.toLowerCase()) 
+    ? `${entityName}_alias` 
+    : entityName;
+  
+  const query = repository.createQueryBuilder(safeAlias).skip(skip).take(limitNumber);
     function flatten(obj: any, prefix = ''): Record<string, any> {
       let result: Record<string, any> = {};
       Object.entries(obj).forEach(([key, value]) => {
@@ -79,11 +82,12 @@ export class CRUD {
         new Brackets(qb => {
           searchFields.forEach(field => {
             const col = repository.metadata.columns.find(c => c.propertyName === field);
+            const columnName = col?.databasePath || field;
             const typeStr = String(col?.type || '').toLowerCase();
 
             if (col?.enum && Array.isArray(col.enum)) {
               if (col.enum.includes(search)) {
-                qb.orWhere(`${entityName}.${field} = :enumVal`, { enumVal: search });
+                qb.orWhere(`${entityName}.${columnName} = :enumVal`, { enumVal: search });
               }
               return;
             }
@@ -93,17 +97,17 @@ export class CRUD {
             if (isNumericType) {
               const n = Number(search);
               if (!Number.isNaN(n)) {
-                qb.orWhere(`${entityName}.${field} = :n`, { n });
+                qb.orWhere(`${entityName}.${columnName} = :n`, { n });
               }
               return;
             }
 
             if (typeStr === 'jsonb' || typeStr === 'json') {
-              qb.orWhere(`${entityName}.${field}::text ILIKE :s`, { s: `%${search}%` });
+              qb.orWhere(`${entityName}.${columnName}::text ILIKE :s`, { s: `%${search}%` });
               return;
             }
 
-            qb.orWhere(`${entityName}.${field}::text ILIKE :s`, { s: `%${search}%` });
+            qb.orWhere(`${entityName}.${columnName}::text ILIKE :s`, { s: `%${search}%` });
           });
         }),
       );
@@ -120,7 +124,7 @@ export class CRUD {
       throw new BadRequestException(`Invalid sortBy field: '${sortField}'`);
     }
 
-    query.orderBy(`${entityName}.${sortField}`, sortDirection);
+    query.orderBy(`${query.alias}.${sortField}`, sortDirection);
 
     const [data, total] = await query.getManyAndCount();
 
