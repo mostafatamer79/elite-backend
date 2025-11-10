@@ -1,7 +1,7 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Agent, AgentApprovalStatus, NotificationChannel, NotificationType, User, UserType } from 'entities/global.entity';
+import { Agent, AgentApprovalStatus, AgentBalance, AgentPayment, Appointment, CustomerReview, NotificationChannel, NotificationType, User, UserType } from 'entities/global.entity';
 import { CreateAgentDto, UpdateAgentDto, ApproveAgentDto, AgentQueryDto } from '../../dto/agents.dto';
 import { NotificationsService } from 'src/notifications/notifications.service';
 
@@ -12,6 +12,14 @@ export class AgentsService {
     public agentsRepository: Repository<Agent>,
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    @InjectRepository(Appointment)
+    private appointmentRepo: Repository<Appointment>,
+    @InjectRepository(AgentPayment)
+    private paymentRepo: Repository<AgentPayment>,
+    @InjectRepository(CustomerReview)
+    private reviewRepo: Repository<CustomerReview>,
+    @InjectRepository(AgentBalance)
+    private balanceRepo: Repository<AgentBalance>,
     private notificationsService: NotificationsService,
   ) {}
 
@@ -102,7 +110,10 @@ export class AgentsService {
     if (approveAgentDto.kycNotes) {
       agent.kycNotes = approveAgentDto.kycNotes;
     }
-
+    if (approveAgentDto.status === AgentApprovalStatus.APPROVED) {
+      agent.user.userType = UserType.AGENT;
+      await this.usersRepository.save(agent.user);
+    }
     await this.notificationsService.createNotification({
       userId: agent.user.id,
       type: NotificationType.SYSTEM,
@@ -126,4 +137,47 @@ export class AgentsService {
 
     return agent;
   }
+async getDashboard(agentId: number) {
+  const agent = await this.agentsRepository.findOne({where:{user:{id:agentId}}});
+
+  const totalAppointments = await this.appointmentRepo.count({
+    where: { agent: { id: agent.id } },
+  });
+
+  const balance = await this.balanceRepo.findOne({ where: { agent: { id: agent.id } } });
+
+  const recentPayments = await this.paymentRepo.find({
+    where: { agent: { id: agent.id } },
+    order: { createdAt: 'DESC' },
+    take: 5,
+  });
+
+  const reviews = await this.reviewRepo.find({
+    where: { agentId:agent.id },
+    order: { createdAt: 'DESC' },
+    take: 5,
+  });
+
+  const averageRating =
+    reviews.length > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : 0;
+
+  const recentAppointments = await this.appointmentRepo.find({
+    where: { agent: { id: agent.id } },
+    order: { appointmentDate: 'DESC' },
+    take: 5,
+    relations: ['customer', 'property'],
+  });
+
+  return {
+    stats: {
+      totalAppointments,
+      totalEarnings: balance?.totalEarnings || 0,
+      pendingBalance: balance?.pendingBalance || 0,
+      averageRating,
+    },
+    recentPayments,
+    recentReviews: reviews,
+    recentAppointments,
+  };
+}
 }

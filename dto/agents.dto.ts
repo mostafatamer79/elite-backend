@@ -4,7 +4,8 @@ import { AgentApprovalStatus } from '../entities/global.entity';
 export class CreateAgentDto {
   @IsNotEmpty()
   @IsNumber()
-  userId: number;
+  @IsOptional()
+  userId?: number;
 
   @IsNotEmpty()
   @IsNumber()
