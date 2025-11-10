@@ -11,7 +11,7 @@ export interface CustomPaginatedResponse<T> {
 }
 
 export class CRUD {
-  static async findAll<T>(repository: Repository<T>, entityName: string, search?: string, page: any = 1, limit: any = 10, sortBy?: string, sortOrder: 'ASC' | 'DESC' = 'DESC', relations?: string[], searchFields?: string[], filters?: Record<string, any>): Promise<CustomPaginatedResponse<T>> {
+  static async findAll<T>(repository: Repository<T>, entityName: string, search?: string, page: any = 1, limit: any = 10, sortBy?: string, sortOrder: 'ASC' | 'DESC' = 'DESC', relations?: string[], searchFields?: string[], filters?: Record<string, any>, extraFilters?: any): Promise<CustomPaginatedResponse<T>> {
     const pageNumber = Number(page) || 1;
     const limitNumber = Number(limit) || 10;
 
@@ -38,19 +38,42 @@ export class CRUD {
       });
       return result;
     }
-
+    if (relations?.length) {
+      CRUD.joinNestedRelations(query, repository, entityName, relations);
+    }
     if (filters && Object.keys(filters).length > 0) {
       const flatFilters = flatten(filters);
       Object.entries(flatFilters).forEach(([flatKey, value]) => {
         if (value !== null && value !== undefined && value !== '') {
           const paramKey = flatKey.replace(/\./g, '_');
-          query.andWhere(`${entityName}.${flatKey} = :${paramKey}`, {
-            [paramKey]: value,
-          });
+          const aliasPath = flatKey.includes('.') 
+          ? `${entityName}_${flatKey.replace(/\./g, '_')}` 
+          : `${entityName}.${flatKey}`;
+        
+        query.andWhere(`${aliasPath} = :${paramKey}`, {
+          [paramKey]: value,
+        });
+        
         }
       });
     }
-
+    if (extraFilters) {
+      const { priceMin, priceMax, type } = extraFilters;
+    
+      if (priceMin !== undefined) {
+        query.andWhere(`${entityName}.price >= :priceMin`, { priceMin });
+      }
+    
+      if (priceMax !== undefined) {
+        query.andWhere(`${entityName}.price <= :priceMax`, { priceMax });
+      }
+    
+      if (type) {
+     
+        const propertyTypeAlias = query.expressionMap.aliases.find(a => a.name === 'propertyType')?.name || 'property_propertyType';
+        query.andWhere(`${propertyTypeAlias}.name ILIKE :type`, { type: `%${type}%` });
+      }
+    }
     if (search && searchFields?.length >= 1) {
       query.andWhere(
         new Brackets(qb => {
@@ -86,9 +109,7 @@ export class CRUD {
       );
     }
 
-    if (relations?.length) {
-      CRUD.joinNestedRelations(query, repository, entityName, relations);
-    }
+
 
     const defaultSortBy = 'createdAt';
     const sortField = sortBy || defaultSortBy;

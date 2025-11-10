@@ -57,8 +57,9 @@ export class PropertiesController {
 
   @Get()
   findAll(@Query() query: any) {
-    // equality filters only (what CRUD supports out-of-the-box)
     const filters: Record<string, any> = {};
+  
+    // equality filters
     if (query.cityId) filters.city = { id: Number(query.cityId) };
     if (query.areaId) filters.area = { id: Number(query.areaId) };
     if (query.propertyTypeId) filters.propertyType = { id: Number(query.propertyTypeId) };
@@ -66,20 +67,25 @@ export class PropertiesController {
       if (query.isActive === 'true') filters.isActive = true;
       else if (query.isActive === 'false') filters.isActive = false;
     }
-
+  
     return CRUD.findAll(
-      this.propertiesService.propertiesRepository, // repo
-      'property', // alias
-      query.q || query.search, // search
-      query.page, // page
-      query.limit, // limit
-      query.sortBy ?? 'createdAt', // sortBy (avoid default 'created_at' mismatch)
-      query.sortOrder ?? 'DESC', // sortOrder
-      ['propertyType', 'city', 'area', 'createdBy', 'medias'], // relations
-      ['title', 'description', 'price'], // searchFields on root columns (adjust to your entity)
-      filters, // equality filters
+      this.propertiesService.propertiesRepository, 
+      'property', 
+      query.q || query.search, 
+      query.page,       query.limit, 
+      query.sortBy ?? 'createdAt', 
+      query.sortOrder ?? 'DESC',
+      ['propertyType', 'city', 'area', 'createdBy', 'medias'], 
+      ['title', 'description', 'price'],
+      filters,
+      { 
+        priceMin: query.priceMin ? Number(query.priceMin) : undefined,
+        priceMax: query.priceMax ? Number(query.priceMax) : undefined,
+        type: query.type || undefined,
+      },
     );
   }
+  
 
   @Get(':id')
   findOne(@Param('id') id: string) {
