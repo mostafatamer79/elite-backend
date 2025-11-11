@@ -17,11 +17,11 @@ export class AuthController {
     return this.authService.register(registerDto);
   }
 
-  // @Post('login')
-  // @HttpCode(HttpStatus.OK)
-  // async login(@Body() loginDto: LoginDto) {
-  //   return this.authService.login(loginDto);
-  // }
+  @Post('login')
+  @HttpCode(HttpStatus.OK)
+  async login(@Body() loginDto: LoginDto) {
+    return this.authService.login(loginDto);
+  }
 
   @Post('verify-otp')
   @HttpCode(HttpStatus.OK)
