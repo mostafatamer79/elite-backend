@@ -24,22 +24,22 @@ export class AgentsService {
   ) {}
 
   async create(createAgentDto: CreateAgentDto,userId:number): Promise<Agent> {
+    console.log('Creating agent for userId:', userId);
     const existingAgent = await this.usersRepository.findOne({
-      where: {  id: createAgentDto.userId },
+      where: {  id: userId },
     });
     console.log('Existing Agent:', existingAgent);
     console.log('CreateAgentDto:', createAgentDto);
+    if (!existingAgent) {
+      throw new NotFoundException('User not found');
+    }
     if (existingAgent.userType == UserType.AGENT) {
       throw new ConflictException('Agent already exists for this user');
     }
 
-    const user = await this.usersRepository.findOne({ where: { id: createAgentDto.userId } });
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
 
     const agent = this.agentsRepository.create({
-      user,
+      user: existingAgent,
       city: { id: createAgentDto.cityId },
       identityProofUrl: createAgentDto.identityProof,
       residencyDocumentUrl: createAgentDto.residencyDocument,
@@ -48,7 +48,7 @@ export class AgentsService {
     await this.notificationsService.notifyUserType(UserType.ADMIN, {
       type: NotificationType.SYSTEM,
       title: 'New Agent Application',
-      message: `Agent ${user.fullName} has submitted a new application and requires approval.`,
+      message: `Agent ${existingAgent.fullName} has submitted a new application and requires approval.`,
       relatedId: agent.id,
       channel: NotificationChannel.IN_APP,
     });
