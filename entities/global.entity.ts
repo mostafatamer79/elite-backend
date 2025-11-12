@@ -748,6 +748,7 @@ export class FavoriteProperty extends CoreEntity {
 }
 
 /* ===================== "اعرض عقارك" Requests ===================== */
+
 @Entity('property_listing_requests')
 export class PropertyListingRequest extends CoreEntity {
   @ManyToOne(() => User, { eager: true })
@@ -764,7 +765,7 @@ export class PropertyListingRequest extends CoreEntity {
   @Column({ type: 'varchar', length: 1000 })
   location: string;
 
-  @Column({ name: 'specifications', type: 'jsonb' })
+  @Column({ type: 'jsonb' })
   specifications: Record<string, any>;
 
   @Column({ name: 'asking_price', type: 'numeric', precision: 15, scale: 2, nullable: true })
@@ -772,6 +773,9 @@ export class PropertyListingRequest extends CoreEntity {
 
   @Column({ name: 'authorization_doc_url', type: 'varchar', length: 500, nullable: true })
   authorizationDocUrl?: string | null;
+
+  @Column({ name: 'ownership_doc_url', type: 'varchar', length: 500, nullable: true })
+  ownershipDocUrl?: string | null;
 
   @Column({ type: 'enum', enum: ListingRequestStatus, default: ListingRequestStatus.PENDING })
   status: ListingRequestStatus;
@@ -784,6 +788,7 @@ export class PropertyListingRequest extends CoreEntity {
   attachments: PropertyListingRequestAttachment[];
 }
 
+
 @Entity('property_listing_requests_attachments')
 export class PropertyListingRequestAttachment extends CoreEntity {
   @ManyToOne(() => PropertyListingRequest, r => r.attachments, { onDelete: 'CASCADE' })
@@ -793,7 +798,6 @@ export class PropertyListingRequestAttachment extends CoreEntity {
   @Column({ name: 'attachment_url', type: 'varchar', length: 500 })
   attachmentUrl: string;
 }
-
 /* ===================== Agents Matching & Availability ===================== */
 @Entity('agent_availability')
 export class AgentAvailability extends CoreEntity {

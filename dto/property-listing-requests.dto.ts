@@ -1,17 +1,21 @@
-import { IsNotEmpty, IsEnum, IsOptional, IsString, IsNumber, IsObject } from 'class-validator';
+import { IsNotEmpty, IsEnum, IsOptional, IsString, IsNumber, IsObject, IsArray } from 'class-validator';
 import { RelationshipType, ListingRequestStatus } from '../entities/global.entity';
+import { Type, Transform } from 'class-transformer';
 
 export class CreatePropertyListingRequestDto {
-  @IsNotEmpty()
+  @IsOptional()
   @IsNumber()
-  ownerId: number;
+  @Type(() => Number) // <-- transform string to number
+  ownerId?: number;
 
   @IsNotEmpty()
   @IsEnum(RelationshipType)
+  @Transform(({ value }) => value.toLowerCase()) // ensure enum matches
   relationshipType: RelationshipType;
 
   @IsNotEmpty()
   @IsNumber()
+  @Type(() => Number)
   propertyTypeId: number;
 
   @IsNotEmpty()
@@ -20,6 +24,16 @@ export class CreatePropertyListingRequestDto {
 
   @IsNotEmpty()
   @IsObject()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      try {
+        return JSON.parse(value);
+      } catch {
+        return {}; // fallback
+      }
+    }
+    return value;
+  })
   specifications: Record<string, any>;
 
   @IsOptional()
@@ -31,6 +45,12 @@ export class CreatePropertyListingRequestDto {
   authorizationDocUrl?: string;
 
   @IsOptional()
+  @IsString()
+  ownershipDocUrl?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
   attachments?: string[];
 }
 
@@ -54,6 +74,16 @@ export class UpdatePropertyListingRequestDto {
   @IsOptional()
   @IsString()
   authorizationDocUrl?: string;
+
+
+  @IsOptional()
+  @IsString()
+  ownershipDocUrl?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  attachments?: string[];
 }
 
 export class PropertyListingRequestQueryDto {

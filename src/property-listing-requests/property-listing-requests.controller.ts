@@ -1,24 +1,77 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller, Get, Post, Body, Patch, Param, Delete, Query,
+  UseGuards, UseInterceptors, UploadedFiles,
+  Request,
+  BadRequestException
+} from '@nestjs/common';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
 import { PropertyListingRequestsService } from './property-listing-requests.service';
-import { CreatePropertyListingRequestDto, UpdatePropertyListingRequestDto, PropertyListingRequestQueryDto, AddAttachmentDto } from '../../dto/property-listing-requests.dto';
+import { AddAttachmentDto, CreatePropertyListingRequestDto, UpdatePropertyListingRequestDto } from '../../dto/property-listing-requests.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserType } from 'entities/global.entity';
 import { CRUD } from 'common/crud.service';
+import { imageUploadOptions, toWebPathImages } from 'common/upload.config';
 
+interface RequestWithUser extends Request {
+  user: any;
+}
 @Controller('property-listing-requests')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class PropertyListingRequestsController {
   constructor(private readonly propertyListingRequestsService: PropertyListingRequestsService) {}
 
-  @Post()
-  @Roles(UserType.CUSTOMER, UserType.ADMIN)
-  create(@Body() createPropertyListingRequestDto: CreatePropertyListingRequestDto) {
-    return this.propertyListingRequestsService.create(createPropertyListingRequestDto);
-  }
 
-@Get()
+  @Post()
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'authorizationDoc', maxCount: 1 },
+      { name: 'ownershipDoc', maxCount: 1 },
+      { name: 'attachments', maxCount: 10 },
+    ],
+    imageUploadOptions )
+  )
+  async create(
+    @UploadedFiles() files: { 
+      authorizationDoc?: Express.Multer.File[], 
+      ownershipDoc?: Express.Multer.File[], 
+      attachments?: Express.Multer.File[] 
+    },
+    @Body() createDto: CreatePropertyListingRequestDto,
+    @Request() req: RequestWithUser,
+  ) {
+    if (!req.user || !req.user.id) {
+      throw new BadRequestException('Owner ID is required from JWT');
+    }
+  
+    createDto.ownerId = Number(req.user.id);
+    console.log(files)
+    // Save single files to main table
+    if (files.authorizationDoc?.[0]) {
+      createDto.authorizationDocUrl = toWebPathImages(files.authorizationDoc[0].filename);
+    }
+    if (files.ownershipDoc?.[0]) {
+      createDto.ownershipDocUrl = toWebPathImages(files.ownershipDoc[0].filename);
+    }
+    if (files.attachments?.length) {
+      createDto.attachments = files.attachments.map(f => toWebPathImages(f.filename));
+    }
+    // Pass uploaded attachments files to the service
+    const attachmentsFiles = files.attachments ?? [];
+    
+    // Validate required fields
+    if (!createDto.relationshipType) throw new BadRequestException('relationshipType is required');
+    if (!createDto.propertyTypeId) throw new BadRequestException('propertyTypeId is required');
+    if (!createDto.location) throw new BadRequestException('location is required');
+    if (!createDto.specifications) throw new BadRequestException('specifications are required');
+    
+    return this.propertyListingRequestsService.create(createDto, attachmentsFiles);
+  }
+  
+@Get()  
   @Roles(UserType.ADMIN, UserType.AGENT, UserType.QUALITY)
   findAll(@Query() query: any) {
     const filters: Record<string, any> = {};
@@ -48,9 +101,39 @@ export class PropertyListingRequestsController {
 
   @Patch(':id')
   @Roles(UserType.ADMIN, UserType.QUALITY)
-  update(@Param('id') id: string, @Body() updatePropertyListingRequestDto: UpdatePropertyListingRequestDto) {
-    return this.propertyListingRequestsService.update(+id, updatePropertyListingRequestDto);
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: 'authorizationDoc', maxCount: 1 },
+        { name: 'ownershipDoc', maxCount: 1 },
+        { name: 'attachments', maxCount: 10 },
+      ],
+      imageUploadOptions
+    )
+  )
+  async update(
+    @Param('id') id: string,
+    @UploadedFiles() files: {
+      authorizationDoc?: Express.Multer.File[],
+      ownershipDoc?: Express.Multer.File[],
+      attachments?: Express.Multer.File[]
+    },
+    @Body() updateDto: UpdatePropertyListingRequestDto,
+  ) {
+    // Map uploaded files to URLs
+    if (files.authorizationDoc?.[0]) {
+      updateDto.authorizationDocUrl = toWebPathImages(files.authorizationDoc[0].filename);
+    }
+    if (files.ownershipDoc?.[0]) {
+      updateDto.ownershipDocUrl = toWebPathImages(files.ownershipDoc[0].filename);
+    }
+    if (files.attachments?.length) {
+      updateDto.attachments = files.attachments.map(f => toWebPathImages(f.filename));
+    }
+  
+    return this.propertyListingRequestsService.update(+id, updateDto);
   }
+  
 
   @Delete(':id')
   @Roles(UserType.ADMIN, UserType.CUSTOMER)

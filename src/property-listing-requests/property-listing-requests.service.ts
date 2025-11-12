@@ -16,29 +16,23 @@ export class PropertyListingRequestsService {
     @InjectRepository(PropertyType)
     private propertyTypesRepository: Repository<PropertyType>,
   ) {}
-
-  async create(dto: CreatePropertyListingRequestDto): Promise<PropertyListingRequest> {
-    // ensure numbers even if sent as strings
-    const ownerId = Number(dto.ownerId);
-    const propertyTypeId = Number(dto.propertyTypeId);
-
-    const owner = await this.usersRepository.findOne({ where: { id: ownerId } });
+  async create(dto: CreatePropertyListingRequestDto, attachmentsFiles: Express.Multer.File[] = []): Promise<PropertyListingRequest> {
+    const owner = await this.usersRepository.findOne({ where: { id: dto.ownerId } });
     if (!owner) throw new NotFoundException('Owner not found');
-
-    const propertyType = await this.propertyTypesRepository.findOne({ where: { id: propertyTypeId } });
+  
+    const propertyType = await this.propertyTypesRepository.findOne({ where: { id: dto.propertyTypeId } });
     if (!propertyType) throw new NotFoundException('Property type not found');
-
-    // handle jsonb: if a string was sent, parse it
-    let specifications: Record<string, any> = dto.specifications as any;
+  
+    let specifications = dto.specifications;
     if (typeof specifications === 'string') {
       try {
         specifications = JSON.parse(specifications);
       } catch {
-        throw new BadRequestException('specifications must be a valid JSON object');
+        throw new BadRequestException('Invalid specifications JSON');
       }
     }
-
-    // map only entity fields (don’t spread dto)
+  
+    // Save main request
     const request = this.propertyListingRequestsRepository.create({
       owner,
       relationshipType: dto.relationshipType,
@@ -47,25 +41,26 @@ export class PropertyListingRequestsService {
       specifications,
       askingPrice: dto.askingPrice ?? null,
       authorizationDocUrl: dto.authorizationDocUrl ?? null,
-      // status uses default
+      ownershipDocUrl: dto.ownershipDocUrl ?? null,
     });
-
+  
     const savedRequest = await this.propertyListingRequestsRepository.save(request);
-
-    // save attachments if provided
-    if (dto.attachments?.length) {
-      const rows = dto.attachments.map(attachmentUrl =>
+  
+    // Save attachments
+    if (attachmentsFiles.length > 0) {
+      const attachmentsRows = attachmentsFiles.map(file =>
         this.attachmentsRepository.create({
           request: savedRequest,
-          attachmentUrl,
+          attachmentUrl: `/uploads/${file.filename}`,
         }),
       );
-      await this.attachmentsRepository.save(rows);
+      await this.attachmentsRepository.save(attachmentsRows);
     }
-
+  
     return this.findOne(savedRequest.id);
   }
-
+  
+  
   async findOne(id: number): Promise<PropertyListingRequest> {
     const request = await this.propertyListingRequestsRepository.findOne({
       where: { id },
@@ -79,12 +74,28 @@ export class PropertyListingRequestsService {
     return request;
   }
 
-  async update(id: number, updatePropertyListingRequestDto: UpdatePropertyListingRequestDto): Promise<PropertyListingRequest> {
+  async update(id: number, updateDto: UpdatePropertyListingRequestDto): Promise<PropertyListingRequest> {
     const request = await this.findOne(id);
-    Object.assign(request, updatePropertyListingRequestDto);
-    return this.propertyListingRequestsRepository.save(request);
+    if (!request) throw new NotFoundException('Property listing request not found');
+  
+    const { attachments, ...mainFields } = updateDto;
+    Object.assign(request, mainFields);
+  
+    const savedRequest = await this.propertyListingRequestsRepository.save(request);
+  
+    if (attachments && attachments.length > 0) {
+      const rows = attachments.map(attachmentUrl =>
+        this.attachmentsRepository.create({
+          request: savedRequest,
+          attachmentUrl,
+        })
+      );
+      await this.attachmentsRepository.save(rows);
+    }
+  
+    return this.findOne(savedRequest.id);
   }
-
+  
   async remove(id: number): Promise<void> {
     const request = await this.findOne(id);
     await this.propertyListingRequestsRepository.remove(request);
