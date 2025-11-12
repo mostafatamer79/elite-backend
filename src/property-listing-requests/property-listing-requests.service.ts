@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PropertyListingRequest, PropertyListingRequestAttachment, User, PropertyType, ListingRequestStatus, RelationshipType } from 'entities/global.entity';
 import { CreatePropertyListingRequestDto, UpdatePropertyListingRequestDto, PropertyListingRequestQueryDto, AddAttachmentDto } from '../../dto/property-listing-requests.dto';
+import { toWebPathFiles } from 'common/upload.config';
 
 @Injectable()
 export class PropertyListingRequestsService {
@@ -51,7 +52,7 @@ export class PropertyListingRequestsService {
       const attachmentsRows = attachmentsFiles.map(file =>
         this.attachmentsRepository.create({
           request: savedRequest,
-          attachmentUrl: `/uploads/${file.filename}`,
+          attachmentUrl: toWebPathFiles(file.filename),
         }),
       );
       await this.attachmentsRepository.save(attachmentsRows);
