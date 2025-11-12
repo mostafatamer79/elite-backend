@@ -16,8 +16,8 @@ exports.PropertiesService = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
-const global_entity_1 = require("../../entities/global.entity");
-const notifications_service_1 = require("../notifications/notifications.service");
+const global_entity_1 = require("src/entities/global.entity");
+const notifications_service_1 = require("src/notifications/notifications.service");
 let PropertiesService = class PropertiesService {
     constructor(propertiesRepository, propertyMediaRepository, propertyTypeRepository, cityRepository, areaRepository, notificationsService) {
         this.propertiesRepository = propertiesRepository;

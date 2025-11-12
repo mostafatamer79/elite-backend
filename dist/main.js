@@ -6,7 +6,7 @@ const app_module_1 = require("./app.module");
 const common_1 = require("@nestjs/common");
 const serverless_http_1 = require("serverless-http");
 const path_1 = require("path");
-const QueryFailedErrorFilter_1 = require("../common/QueryFailedErrorFilter");
+const QueryFailedErrorFilter_1 = require("./common/QueryFailedErrorFilter");
 let cachedApp;
 async function bootstrap() {
     if (cachedApp)
