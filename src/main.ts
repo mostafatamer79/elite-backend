@@ -1,51 +1,31 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { Logger, ValidationPipe } from '@nestjs/common';
-import { join } from 'path';
+import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import serverless from 'serverless-http';
+import { join } from 'path';
 import { QueryFailedErrorFilter } from 'common/QueryFailedErrorFilter';
 
 let cachedApp: NestExpressApplication;
 
-async function createApp(): Promise<NestExpressApplication> {
+async function bootstrap() {
+  if (cachedApp) return cachedApp;
+
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.useGlobalFilters(app.get(QueryFailedErrorFilter));
-  app.useStaticAssets(join(__dirname, '..', '..', '/uploads'), { prefix: '/uploads/' });
 
-  app.enableCors();
+  // Serve static files from uploads
+  app.useStaticAssets(join(__dirname, 'uploads'), { prefix: '/uploads/' });
 
-  app.useGlobalPipes(
-    new ValidationPipe({
-      disableErrorMessages: false,
-      transform: true,
-      forbidNonWhitelisted: true,
-      whitelist: true,
-    }),
-  );
-
-  await app.init(); // ✅ don’t call listen()
-  Logger.log('🚀 NestJS app initialized (serverless mode)');
+  await app.init();
+  cachedApp = app;
   return app;
 }
 
-/**
- * Vercel serverless handler
- * This replaces app.listen()
- */
-export default async function handler(req, res) {
-  if (!cachedApp) {
-    cachedApp = await createApp();
-  }
-  const instance = cachedApp.getHttpAdapter().getInstance();
-  return instance(req, res);
-}
-
-// 👇 For local development only
-if (process.env.NODE_ENV !== 'production') {
-  createApp().then(app => {
-    const port = process.env.PORT || 3030;
-    app.listen(port);
-    Logger.log(`🚀 Server is running locally on http://localhost:${port}`);
-  });
-}
+export const handler = async (event: any, context: any) => {
+  const app = await bootstrap();
+  const server = serverless(app.getHttpAdapter().getInstance());
+  return server(event, context);
+};
